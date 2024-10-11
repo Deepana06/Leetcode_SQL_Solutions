@@ -1,4 +1,6 @@
 /*Easy*/
+/*Leet code 50 sql challenge*/
+
 /*Write a solution to find the ids of products that are both low fat and recyclable.
 Return the result table in any order.
 The result format is in the following example.*/
@@ -189,4 +191,160 @@ from project p left join employee e
     on p.employee_id=e.employee_id
 group by p.project_id
 
+
+/*Write a solution to find the percentage of the users registered in each contest rounded to two decimals.
+Return the result table ordered by percentage in descending order. In case of a tie, order it by contest_id in ascending order.*/
+
+select r.contest_id,cast((cast(count(distinct r.user_id) as decimal(5,2))
+/cast(u1.tot_users as decimal(5,2))*100)as decimal(5,2)) as percentage
+from users u
+inner join register r
+    on u.user_id=r.user_id
+cross join (select count(user_id)as tot_users from users) u1
+group by r.contest_id,u1.tot_users
+order by 2 desc,1 asc
+
+/*We define query quality as:
+The average of the ratio between query rating and its position.
+We also define poor query percentage as:
+The percentage of all queries with rating less than 3.
+Write a solution to find each query_name, the quality and poor_query_percentage.
+Both quality and poor_query_percentage should be rounded to 2 decimal places.
+Return the result table in any order*/
+
+select query_name,
+CAST(SUM(CAST(rating AS DECIMAL(5,2))/CAST(position AS DECIMAL(5,2)))
+/cast(count(result) as decimal(5,2))AS DECIMAL(5,2)) as Quality,
+CAST(CAST(sum(case when rating<3 then 1 else 0 end)as decimal(5,2))
+/CAST(count(result)as decimal(5,2))*100 AS DECIMAL(5,2)) AS poor_query_percentage
+from queries
+where query_name is not null
+group by query_name
+
+/*Write an SQL query to find for each month and country, the number of transactions and their total amount, 
+the number of approved transactions and their total amount.
+Return the result table in any order.*/
+
+select left(trans_date,7) as month,country,count(id) as Trans_Count,
+SUM(case when [state]='approved' then 1 else 0 end)as approved_count,
+SUM(AMOUNT)AS trans_total_amount, 
+SUM(case when [state]='approved' then AMOUNT else 0 end) as approved_total_amount
+from transactions
+group by left(trans_date,7),country
+
+/*If the customer's preferred delivery date is the same as the order date, then the order is called immediate; otherwise, it is called scheduled.
+The first order of a customer is the order with the earliest order date that the customer made. It is guaranteed that a customer has precisely one first order.
+Write a solution to find the percentage of immediate orders in the first orders of all customers, rounded to 2 decimal places.*/
+
+; with Delivery1 as
+(
+select rank()over(partition by customer_id order by order_date asc)as rw,*
+from Delivery
+), scheduled_order as
+(
+select sum(case when order_date= customer_pref_delivery_date
+    then 1 else 0 end)as Scheduled_order_count
+from Delivery1 
+where rw=1
+), result as
+(
+select cast(cast(Scheduled_order_count as decimal(5,2))/
+cast(d.Customer_count as decimal(5,2))as decimal(5,2))*100 as immediate_percentage
+from scheduled_order 
+cross join (select count(distinct customer_id)as Customer_count from Delivery) d
+)
+select cast(cast(Scheduled_order_count as decimal(5,2))/
+cast(d.Customer_count as decimal(5,2)) *100 as decimal(5,2)) as immediate_percentage
+from scheduled_order 
+cross join (select count(distinct customer_id)as Customer_count from Delivery) d
+
+
+/*Write a solution to report the fraction of players that logged in again on the day after the day they first logged in, rounded to 2 decimal places. 
+In other words, you need to count the number of players that logged in for at least two consecutive days starting from their first login date, 
+then divide that number by the total number of players.*/
+
+; with initial_login as
+(
+select row_number()over(partition by player_id order by event_date)as rw,* 
+from activity
+), count_players as
+(
+select count(i.player_id) as count_player_id from
+(select * from initial_login 
+where rw=1)as i 
+inner join (select * from initial_login 
+where rw=2)as i1 
+on i.player_id=i1.player_id
+where i1.event_date=dateadd(dd,1,i.event_date)
+)
+select cast(cast(count_player_id as decimal(5,2))/
+cast(count_player_id_1 as decimal(5,2)) as decimal(5,2)) as fraction
+from count_players c 
+cross join (select count(distinct player_id)as count_player_id_1 from activity)a
+/*Write a solution to calculate the number of unique subjects each teacher teaches in the university.
+Return the result table in any order.*/
+select teacher_id, count(distinct subject_id) as cnt from Teacher
+group by teacher_id
+/*Write a solution to find the daily active user count for a period of 30 days ending 2019-07-27 inclusively. 
+A user was active on someday if they made at least one activity on that day.
+Return the result table in any order.*/
+select activity_date as day, count(distinct user_id)active_users
+from Activity
+where activity_date between dateadd(dd,-29,'2019-07-27') and '2019-07-27'
+group by activity_date
+/*Write a solution to select the product id, year, quantity, and price for the first year of every product sold.
+Return the resulting table in any order.The result format is in the following example.*/
+select product_id, first_year,quantity,price
+from
+(
+select s.product_id, s.year as first_year, s.quantity ,s.price ,
+Row_number()over(partition by s.product_id order by Year asc )as rw
+from sales s 
+)r
+where r.rw=1
+/*Write a solution to find managers with at least five direct reports.
+Return the result table in any order.
+The result format is in the following example.*/
+select name from employee
+where id in (
+select managerid from employee
+group by managerid
+having count(distinct id)>=5)
+/*(sale_id, year) is the primary key (combination of columns with unique values) of this table.
+product_id is a foreign key (reference column) to Product table.
+Each row of this table shows a sale on the product product_id in a certain year.
+Note that the price is per unit.
+product_id is the primary key (column with unique values) of this table.
+Each row of this table indicates the product name of each product.*/
+
+select s.product_id,p.year as First_Year, quantity,(price) as price
+from sales s 
+inner join (select min(Year)as Year,product_id from sales
+group by product_id
+)p
+on p.product_id=s.product_id
+and p.year=s.year
+/* 
+Table: Customer
+Column Name | Type    |
++-------------+---------+
+| customer_id | int     |
+| product_key | int  
+This table may contain duplicates rows. 
+customer_id is not NULL.
+product_key is a foreign key (reference column) to Product table.
+Table: Product
++-------------+---------+
+| Column Name | Type    |
++-------------+---------+
+| product_key | int     |
++-------------+---------+
+product_key is the primary key (column with unique values) for this table.*/
+
+; With customer_I as
+(select customer_id,count(distinct product_key) Product_Key_count
+from customer
+group by customer_id)
+select customer_id from customer_I
+where Product_Key_count in(select count(distinct product_key) from product)
 
