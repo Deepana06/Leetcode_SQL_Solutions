@@ -348,3 +348,124 @@ group by customer_id)
 select customer_id from customer_I
 where Product_Key_count in(select count(distinct product_key) from product)
 
+/*Second Highest Salary*/
+
+select DISTINCT Salary as SecondHighestSalary
+ from
+(
+SELECT Dense_rank()over(order by Salary desc)as rk,*
+from Employee)r
+where r.rk=2
+UNION
+SELECT NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM (
+SELECT Dense_rank()over(order by Salary desc)as rk,*
+from Employee)r
+where r.rk=2
+);
+
+/*+-------------+---------+
+| Column Name | Type    |
++-------------+---------+
+| id          | int     |
+| num         | varchar |
++-------------+---------+
+In SQL, id is the primary key for this table.
+id is an autoincrement column starting from 1.
+ 
+
+Find all numbers that appear at least three times consecutively.
+
+Return the result table in any order.*/
+select distinct num as ConsecutiveNums  from 
+(
+select lag(num,1)over(order by id)as lg,lead(num,1)over(order by id)as ld,* from Logs)r
+where r.lg=r.num
+and r.ld=r.num
+
+/*626. Exchange Seats*/
+Select 
+ID,
+Case when ID_1=1
+    then isnull(ld,Student)
+    Else isnull(lg,Student)
+end as student
+from 
+(
+SELECT lead(Student,1)over(order by ID)as ld,ID%2 as ID_1,
+lag(Student,1)over(order by ID)as lg,
+* FROM SEAT
+)r
+
+/*Movie Rating*/
+;with reviews_count as
+(select user_id,count(movie_id)as review_count
+from MovieRating
+group by user_id
+)
+, avgrating as
+(
+select avg(rating)as avg_rating,movie_id from MovieRating
+group by movie_id
+),Review_User as
+(
+select min(u.[name])as [Results] 
+from reviews_count r
+inner join Users u
+on r.User_id=u.User_id
+where review_count =(select max(review_count) from reviews_count)
+),max_rating as
+(
+select max(m.title) as Results
+from Movies m inner join avgrating a
+on m.movie_id=a.movie_id
+where avg_rating=(select max(avg_rating) from avgrating)
+)
+select * from Review_User
+union 
+select * from max_rating
+
+/*(product_id, change_date) is the primary key (combination of columns with unique values) of this table.
+Each row of this table indicates that the price of some product was changed to a new price at some date.
+ 
+
+Write a solution to find the prices of all products on 2019-08-16. Assume the price of all products before any change is 10.
+
+Return the result table in any order.
+
+The result format is in the following example.
+*/
+; with a2 as 
+(
+    select 
+    product_id,
+    case when change_date<='2019-08-16'
+        then new_price
+    else NULL end as price,change_date,new_price
+    from products
+    where CHANGE_DATE BETWEEN '1900-01-01' and '2019-08-16'
+),a3 as 
+(
+select distinct a2.product_id,
+a2.price 
+from 
+a2 a2 inner join (
+select product_id,max(change_date)change_date from a2
+group by product_id) a1
+on a2.product_id=a1.product_id
+and a2.change_date=a1.change_date
+)
+select distinct
+p.product_id,
+case when a3.product_id is null then '10'
+else a3.price end as price
+from products p left join a3 a3
+on a3.product_id=p.product_id
+
+/*1484. Group Sold Products By The Date*/
+/* Write your T-SQL query statement below */
+select sell_date,count(distinct product)num_sold,STRING_AGG( product, ',') WITHIN GROUP (ORDER BY product) AS products
+from (select distinct * from activities)r
+group by sell_date
+order by sell_date
